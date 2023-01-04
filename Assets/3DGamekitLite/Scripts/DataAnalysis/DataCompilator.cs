@@ -1,16 +1,21 @@
+using Gamekit3D;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.AI;
 using UnityEngine.Events;
 
 public enum eventType
 {
     _null = -1,
-    position,
-    hit,
-    death,
-    kill
+    movement,
+    attack,
+    jump,
+    hitEnemy,
+    killEnemy,
+    recieveDamage,
+    death
 }
 public class HeatmapData
 {
@@ -58,11 +63,19 @@ public class SessionClass : MonoBehaviour
         return data;
     }
 }
-
 public class DataCompilator : MonoBehaviour
 {
     uint playerId = 0;
     uint currentSession = 0;
+    bool newSessionStarted = false;
+    bool endingSession = false;
+
+    public GameObject character;
+    PlayerInput input;
+    PlayerController controller;
+    Vector3 lastPosition;
+    float registerTimer = 1.5f;
+    float currentTimer = 0.0f;
 
     public string url = "https://citmalumnes.upc.es/~sergicf4/";
     public string sUrl = "AddSessionGameplay.php";
@@ -79,16 +92,179 @@ public class DataCompilator : MonoBehaviour
         OnNewSession += NewSession;
         OnEndSession += EndSession;
     }
+    private void OnDisable()
+    {
+        OnNewEvent -= NewEvent;
+        OnNewSession -= NewSession;
+        OnEndSession -= EndSession;
+    }
     // Start is called before the first frame update
     void Start()
     {
         playerId = (uint)UnityEngine.Random.Range(0, 9);
+        input = character.GetComponent<PlayerInput>();
+        controller = character.GetComponent<PlayerController>();
+        //OnNewSession?.Invoke(DateTime.Now);
+        newSessionStarted = true;
+        lastPosition = character.transform.position;
     }
 
     // Update is called once per frame
     void Update()
     {
-        
+        if (newSessionStarted)
+        {
+            currentTimer += Time.deltaTime;
+            if (currentTimer >= registerTimer)
+            {
+                currentTimer = 0.0f;
+                
+                if (lastPosition != character.transform.position)
+                {
+                    Debug.Log("Registered: Character movement!");
+                    //OnNewEvent?.Invoke(
+                    //    DateTime.Now,
+                    //    eventType.movement,
+                    //    playerId,
+                    //    currentSession,
+                    //    character.transform.position);
+                }
+
+                StartCoroutine(ChangeRegisteringTime());
+                lastPosition = character.transform.position;
+            }
+
+            if (Input.GetButtonDown("Jump") && controller.m_ReadyToJump)
+            {
+                Debug.Log("Registered: Jump!");
+                //OnNewEvent?.Invoke(
+                //    DateTime.Now,
+                //    eventType.jump,
+                //    playerId,
+                //    currentSession,
+                //    character.transform.position);
+            }
+
+            if (Input.GetButtonDown("Fire1"))
+            {
+                Debug.Log("Registered: Attack!");
+                //OnNewEvent?.Invoke(
+                //    DateTime.Now,
+                //    eventType.attack,
+                //    playerId,
+                //    currentSession,
+                //    character.transform.position);
+            }
+        }
+    }
+    IEnumerator ChangeRegisteringTime()
+    {
+        GameObject[] importantObjects = GameObject.FindGameObjectsWithTag("Important");
+        GameObject closestTarget = null;
+        float closestDistance = Mathf.Infinity;
+        NavMeshPath path = new NavMeshPath();
+
+        foreach (GameObject potentialTarget in importantObjects)
+        {
+            if (potentialTarget == null)
+            {
+                continue;
+            }
+
+            bool changeMethod = false;
+            if (NavMesh.CalculatePath(character.transform.position, potentialTarget.transform.position, NavMesh.AllAreas, path))
+            {
+                if (path.status == NavMeshPathStatus.PathComplete)
+                {
+                    float distanceToTarget = Vector3.Distance(character.transform.position, path.corners[0]);
+
+                    for (int j = 1; j < path.corners.Length; j++)
+                    {
+                        distanceToTarget += Vector3.Distance(path.corners[j - 1], path.corners[j]);
+                    }
+
+                    if (distanceToTarget < closestDistance)
+                    {
+                        closestDistance = distanceToTarget;
+                        closestTarget = potentialTarget;
+                    }
+                }
+                else
+                {
+                    changeMethod = true;
+                }
+            }
+            else
+            {
+                changeMethod = true;
+            }
+
+            if (changeMethod)
+            {
+                float distanceToTarget = Vector3.Distance(character.transform.position, potentialTarget.transform.position);
+
+                if (distanceToTarget < closestDistance)
+                {
+                    closestDistance = distanceToTarget;
+                    closestTarget = potentialTarget;
+                }
+            }
+        }
+
+        if (closestTarget != null) Debug.Log("Current distance to closest important: " + closestDistance + "; Name: " + closestTarget.name + ", at :" + closestTarget.transform.position);
+
+        yield return closestDistance;
+
+        if (closestDistance <= 15.0f)
+        {
+            Debug.Log("Important shenanigans nearby");
+            registerTimer = closestDistance / 10.0f;
+            registerTimer += 0.3f;
+        }
+        else
+        {
+            registerTimer = 1.8f;
+        }
+    }
+    public void RegisterRecieveDamage()
+    {
+        Debug.Log("Registered: Recieved damage!");
+        //OnNewEvent?.Invoke(
+        //    DateTime.Now,
+        //    eventType.recieveDamage,
+        //    playerId,
+        //    currentSession,
+        //    character.transform.position);
+    }
+    public void RegisterDeath()
+    {
+        Debug.Log("Registered: Character death!");
+        //OnNewEvent?.Invoke(
+        //    DateTime.Now,
+        //    eventType.death,
+        //    playerId,
+        //    currentSession,
+        //    character.transform.position);
+    }
+    public void RegisterHitEnemy()
+    {
+        Debug.Log("Registered: Enemy hit!");
+        //OnNewEvent?.Invoke(
+        //    DateTime.Now,
+        //    eventType.hitEnemy,
+        //    playerId,
+        //    currentSession,
+        //    character.transform.position);
+    }
+    public void RegisterKillEnemy()
+    {
+        Debug.Log("Registered: Enemy death!");
+        //OnNewEvent?.Invoke(
+        //    DateTime.Now,
+        //    eventType.killEnemy,
+        //    playerId,
+        //    currentSession,
+        //    character.transform.position);
     }
 
     private void NewEvent(DateTime dateTime, eventType type, uint playerId, uint sessionId, Vector3 position)
@@ -111,7 +287,7 @@ public class DataCompilator : MonoBehaviour
         }
         else
         {
-            Debug.Log(www.error);
+            Debug.LogError(www.error);
         }
     }
 
@@ -133,10 +309,11 @@ public class DataCompilator : MonoBehaviour
         {
             Debug.Log(www.text);
             currentSession = uint.Parse(www.text);
+            newSessionStarted = true;
         }
         else
         {
-            Debug.Log(www.error);
+            Debug.LogError(www.error);
         }
     }
 
@@ -157,12 +334,18 @@ public class DataCompilator : MonoBehaviour
         if (www.error == null)
         {
             Debug.Log(www.text);
-            currentSession = uint.Parse(www.text);
         }
         else
         {
-            Debug.Log(www.error);
+            Debug.LogError(www.error);
         }
+
+        endingSession = true;
     }
 
+    private void OnApplicationQuit()
+    {
+        //OnEndSession?.Invoke(DateTime.Now);
+        //while (!endingSession){ } ;
+    }
 }
