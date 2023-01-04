@@ -23,7 +23,7 @@ public class HeatmapData
     eventType type;
     uint playerId; //Random number (0 - 9)
     uint sessionId; //Return from primary key when starting
-    Vector3 position;
+    Vector3 position = Vector3.zero;
 
     public HeatmapData(DateTime dateTime, eventType type, uint playerId, uint sessionId, Vector3 position)
     {
@@ -35,13 +35,17 @@ public class HeatmapData
     }
     public string GetData()
     {
+        float x = (float)(Mathf.Round(position.x * 100f) / 100f);
+        float y = (float)(Mathf.Round(position.y * 100f) / 100f);
+        float z = (float)(Mathf.Round(position.z * 100f) / 100f);
+
         string data = "dateTime=" + dateTime.ToString("yyyy-MM-dd HH:mm:ss") 
             + "&type=" + (int)type 
             + "&playerId=" + playerId 
             + "&sessionId=" + sessionId 
-            + "&positionX=" + position.x
-            + "&positionY=" + position.y
-            + "&positionZ=" + position.z;
+            + "&positionX=" + x
+            + "&positionY=" + y
+            + "&positionZ=" + z;
         return data;
     }
 }
@@ -84,19 +88,16 @@ public class DataCompilator : MonoBehaviour
 
     public static Action<DateTime, eventType, uint, uint, Vector3> OnNewEvent;
     public static Action<DateTime> OnNewSession;
-    public static Action<DateTime> OnEndSession;
 
     private void OnEnable()
     {
         OnNewEvent += NewEvent;
         OnNewSession += NewSession;
-        OnEndSession += EndSession;
     }
     private void OnDisable()
     {
         OnNewEvent -= NewEvent;
         OnNewSession -= NewSession;
-        OnEndSession -= EndSession;
     }
     // Start is called before the first frame update
     void Start()
@@ -104,8 +105,7 @@ public class DataCompilator : MonoBehaviour
         playerId = (uint)UnityEngine.Random.Range(0, 9);
         input = character.GetComponent<PlayerInput>();
         controller = character.GetComponent<PlayerController>();
-        //OnNewSession?.Invoke(DateTime.Now);
-        newSessionStarted = true;
+        OnNewSession?.Invoke(DateTime.Now);
         lastPosition = character.transform.position;
     }
 
@@ -122,12 +122,12 @@ public class DataCompilator : MonoBehaviour
                 if (lastPosition != character.transform.position)
                 {
                     Debug.Log("Registered: Character movement!");
-                    //OnNewEvent?.Invoke(
-                    //    DateTime.Now,
-                    //    eventType.movement,
-                    //    playerId,
-                    //    currentSession,
-                    //    character.transform.position);
+                    OnNewEvent?.Invoke(
+                        DateTime.Now,
+                        eventType.movement,
+                        playerId,
+                        currentSession,
+                        character.transform.position);
                 }
 
                 StartCoroutine(ChangeRegisteringTime());
@@ -137,23 +137,23 @@ public class DataCompilator : MonoBehaviour
             if (Input.GetButtonDown("Jump") && controller.m_ReadyToJump)
             {
                 Debug.Log("Registered: Jump!");
-                //OnNewEvent?.Invoke(
-                //    DateTime.Now,
-                //    eventType.jump,
-                //    playerId,
-                //    currentSession,
-                //    character.transform.position);
+                OnNewEvent?.Invoke(
+                    DateTime.Now,
+                    eventType.jump,
+                    playerId,
+                    currentSession,
+                    character.transform.position);
             }
 
             if (Input.GetButtonDown("Fire1"))
             {
                 Debug.Log("Registered: Attack!");
-                //OnNewEvent?.Invoke(
-                //    DateTime.Now,
-                //    eventType.attack,
-                //    playerId,
-                //    currentSession,
-                //    character.transform.position);
+                OnNewEvent?.Invoke(
+                    DateTime.Now,
+                    eventType.attack,
+                    playerId,
+                    currentSession,
+                    character.transform.position);
             }
         }
     }
@@ -229,42 +229,42 @@ public class DataCompilator : MonoBehaviour
     public void RegisterRecieveDamage()
     {
         Debug.Log("Registered: Recieved damage!");
-        //OnNewEvent?.Invoke(
-        //    DateTime.Now,
-        //    eventType.recieveDamage,
-        //    playerId,
-        //    currentSession,
-        //    character.transform.position);
+        OnNewEvent?.Invoke(
+            DateTime.Now,
+            eventType.recieveDamage,
+            playerId,
+            currentSession,
+            character.transform.position);
     }
     public void RegisterDeath()
     {
         Debug.Log("Registered: Character death!");
-        //OnNewEvent?.Invoke(
-        //    DateTime.Now,
-        //    eventType.death,
-        //    playerId,
-        //    currentSession,
-        //    character.transform.position);
+        OnNewEvent?.Invoke(
+            DateTime.Now,
+            eventType.death,
+            playerId,
+            currentSession,
+            character.transform.position);
     }
     public void RegisterHitEnemy()
     {
         Debug.Log("Registered: Enemy hit!");
-        //OnNewEvent?.Invoke(
-        //    DateTime.Now,
-        //    eventType.hitEnemy,
-        //    playerId,
-        //    currentSession,
-        //    character.transform.position);
+        OnNewEvent?.Invoke(
+            DateTime.Now,
+            eventType.hitEnemy,
+            playerId,
+            currentSession,
+            character.transform.position);
     }
     public void RegisterKillEnemy()
     {
         Debug.Log("Registered: Enemy death!");
-        //OnNewEvent?.Invoke(
-        //    DateTime.Now,
-        //    eventType.killEnemy,
-        //    playerId,
-        //    currentSession,
-        //    character.transform.position);
+        OnNewEvent?.Invoke(
+            DateTime.Now,
+            eventType.killEnemy,
+            playerId,
+            currentSession,
+            character.transform.position);
     }
 
     private void NewEvent(DateTime dateTime, eventType type, uint playerId, uint sessionId, Vector3 position)
@@ -287,7 +287,7 @@ public class DataCompilator : MonoBehaviour
         }
         else
         {
-            Debug.LogError(www.error);
+            Debug.LogError("Error: " + www.error);
         }
     }
 
@@ -313,23 +313,23 @@ public class DataCompilator : MonoBehaviour
         }
         else
         {
-            Debug.LogError(www.error);
+            Debug.LogError("Error: " + www.error);
         }
     }
 
     private void EndSession(DateTime dateTime)
     {
-        SessionClass sBuffer = new SessionClass(dateTime, playerId);
-        StartCoroutine(SessionEnd2PHP(sBuffer));
+        SessionClass sBuffer = new SessionClass(dateTime, currentSession);
+        SessionEnd2PHP(sBuffer);
     }
 
-    IEnumerator SessionEnd2PHP(SessionClass s)
+    void SessionEnd2PHP(SessionClass s)
     {
         string dataUrl = url + fUrl + "?" + s.GetData();
         Debug.Log(dataUrl);
         WWW www = new WWW(dataUrl);
 
-        yield return www;
+        while (!www.isDone){ }
 
         if (www.error == null)
         {
@@ -337,15 +337,15 @@ public class DataCompilator : MonoBehaviour
         }
         else
         {
-            Debug.LogError(www.error);
+            Debug.LogError("Error: " + www.error);
         }
 
-        endingSession = true;
+        Debug.Log("Session has ended...");
     }
 
     private void OnApplicationQuit()
     {
-        //OnEndSession?.Invoke(DateTime.Now);
-        //while (!endingSession){ } ;
+        Debug.Log("Ending session...");
+        EndSession(DateTime.Now);
     }
 }
