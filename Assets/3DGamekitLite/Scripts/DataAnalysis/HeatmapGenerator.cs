@@ -6,10 +6,9 @@ using UnityEngine;
 public class HeatmapGenerator : MonoBehaviour
 {
     //Range of IDs to take from
-    [Range(1,140)]
+    [HideInInspector]
     public int maxIds;
     //Amount of IDs to store
-    [Range(1,140)]
     public int totalIdsToStore;
 
     //DataList
@@ -18,6 +17,7 @@ public class HeatmapGenerator : MonoBehaviour
 
     [HideInInspector] public string url = "https://citmalumnes.upc.es/~sergicf4/";
     [HideInInspector] public string sUrl = "GetEvent.php";
+    [HideInInspector] public string nUrl = "GetNumberEvents.php";
 
     public static Action<int> OnGetEvent;
 
@@ -76,31 +76,62 @@ public class HeatmapGenerator : MonoBehaviour
         }
     }
 
+    int GetNumberEvents()
+    {
+        string dataUrl = url + nUrl;
+        Debug.Log(dataUrl);
+        WWW www = new WWW(dataUrl);
+
+        while (!www.isDone) { }
+
+        if (www.error == null)
+        {
+            Debug.Log(www.text);
+            return int.Parse(www.text);
+        }
+        else
+        {
+            Debug.LogError("Error: " + www.error);
+        }
+
+        Debug.Log("Session has ended...");
+        return 0;
+    }
+
     // Start is called before the first frame update
     void Start()
     {
-        while (numbersChosen.Count<totalIdsToStore)
+        maxIds = GetNumberEvents();
+
+        if (totalIdsToStore > maxIds)
         {
-            bool isDupe = false;
-
-            int luckyNumber = UnityEngine.Random.Range(1, maxIds);
-
-            foreach(int number in numbersChosen)
+            Debug.LogError("Error! Too many ids to store. Please choose a lower number.");
+        }
+        else
+        {
+            Debug.Log("Downloading data...");
+            while (numbersChosen.Count < totalIdsToStore)
             {
-                if (number == luckyNumber) { isDupe = true; }
+                bool isDupe = false;
+
+                int luckyNumber = UnityEngine.Random.Range(1, maxIds);
+
+                foreach (int number in numbersChosen)
+                {
+                    if (number == luckyNumber) { isDupe = true; }
+                }
+
+                if (!isDupe)
+                {
+                    numbersChosen.Add(luckyNumber);
+                }
             }
 
-            if(!isDupe)
+            foreach (int number in numbersChosen)
             {
-                numbersChosen.Add(luckyNumber);
+                OnGetEvent?.Invoke(number);
             }
         }
-
-        foreach (int number in numbersChosen)
-        {
-            OnGetEvent?.Invoke(number);
-        }
-
     }
 
     // Update is called once per frame
@@ -109,23 +140,17 @@ public class HeatmapGenerator : MonoBehaviour
         if(heatmapDatas.Count >= totalIdsToStore)
         {
             canUpdate = true;
-            
+            Debug.Log("Data downloaded!");
         }
 
         if(canUpdate)
         {
             if (updateOnce)
             {
-                Debug.Log("printing Info");
+                Debug.Log("Printing Sample Info");
                 heatmapDatas[1].PrintInfo();
                 updateOnce = false;
             }
         }
-    }
-
-    private void OnValidate()
-    {
-        if(totalIdsToStore>maxIds)
-        { totalIdsToStore = maxIds; }
     }
 }
