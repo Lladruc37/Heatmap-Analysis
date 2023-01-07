@@ -19,11 +19,12 @@ public enum eventType
 }
 public class HeatmapData
 {
-    DateTime dateTime;
-    eventType type;
-    uint playerId; //Random number (0 - 9)
-    uint sessionId; //Return from primary key when starting
-    Vector3 position = Vector3.zero;
+    public DateTime dateTime;
+    public eventType type;
+    public uint playerId; //Random number (0 - 9)
+    public uint sessionId; //Return from primary key when starting
+    public Vector3 position = Vector3.zero;
+    public HeatmapData() { }
 
     public HeatmapData(DateTime dateTime, eventType type, uint playerId, uint sessionId, Vector3 position)
     {
@@ -47,6 +48,15 @@ public class HeatmapData
             + "&positionY=" + y
             + "&positionZ=" + z;
         return data;
+    }
+
+    public void PrintInfo()
+    {
+        Debug.Log("dateTime: " + this.dateTime);
+        Debug.Log("type: " + this.type);
+        Debug.Log("playerId: " + this.playerId);
+        Debug.Log("sessionId: " + this.sessionId);
+        Debug.Log("position: " + this.position);
     }
 }
 
