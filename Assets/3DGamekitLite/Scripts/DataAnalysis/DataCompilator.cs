@@ -87,9 +87,11 @@ public class DataCompilator : MonoBehaviour
     public GameObject character;
     PlayerInput input;
     PlayerController controller;
+    Damageable damageable;
     Vector3 lastPosition;
     float registerTimer = 1.5f;
     float currentTimer = 0.0f;
+    bool onceDeath = false;
 
     public string url = "https://citmalumnes.upc.es/~sergicf4/";
     public string sUrl = "AddSessionGameplay.php";
@@ -115,6 +117,7 @@ public class DataCompilator : MonoBehaviour
         playerId = (uint)UnityEngine.Random.Range(0, 9);
         input = character.GetComponent<PlayerInput>();
         controller = character.GetComponent<PlayerController>();
+        damageable = character.GetComponent<Damageable>();
         OnNewSession?.Invoke(DateTime.Now);
         lastPosition = character.transform.position;
     }
@@ -164,6 +167,19 @@ public class DataCompilator : MonoBehaviour
                     playerId,
                     currentSession,
                     character.transform.position);
+            }
+
+            if (controller.respawning)
+            {
+                if (onceDeath)
+                {
+                    RegisterDeath();
+                    onceDeath = false;
+                }
+            }
+            else
+            {
+                onceDeath = true;
             }
         }
     }
