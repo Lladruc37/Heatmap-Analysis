@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Runtime.InteropServices.WindowsRuntime;
 //using System.Numerics;
 using UnityEngine;
+using static Gamekit3D.EffectStateMachineBehavior;
 
 public class HeatmapGenerator : MonoBehaviour
 {
@@ -17,6 +18,7 @@ public class HeatmapGenerator : MonoBehaviour
     [HideInInspector] public List<int> numbersChosen = new List<int>();
     public List<HeatmapData> heatmapDatas = new List<HeatmapData>();
     public List<CubeClass> cubesList = new List<CubeClass>();
+    public List<GameObject> cubesInstantiated = new List<GameObject>();
 
     [HideInInspector] public string url = "https://citmalumnes.upc.es/~sergicf4/";
     [HideInInspector] public string sUrl = "GetEvent.php";
@@ -26,17 +28,30 @@ public class HeatmapGenerator : MonoBehaviour
 
     public GameObject cubePrefab;
 
+    // Map size
+
+    int mapWidth = 190;
+    int mapLength = 140;
+    int mapHeigth = 20;
+
+    public int cubeSize = 1; // TODO: let it change it manually, add a key to generate map
+
+    // Text UI
+    public TMPro.TMP_Text text;
+
     public class CubeClass
     {
-        public GameObject cubePrefab;
+        public GameObject classCubePrefab;
         public Vector3 originPosition = new Vector3();
         public int size;
-        public int value;
+        public Vector3 colorValues;
+        public bool isActive;
 
 
-        public void InstantiateCube()
+        public GameObject InstantiateCube()
         {
-            Instantiate(cubePrefab, originPosition, Quaternion.identity);
+            return Instantiate(classCubePrefab, originPosition, Quaternion.identity);
+
         }
     }
 
@@ -164,33 +179,71 @@ public class HeatmapGenerator : MonoBehaviour
 
         if (canUpdate)
         {
-            if (updateOnce)
+            //Data Controls     
+            if (Input.GetKeyDown(KeyCode.Alpha1))
             {
-                Debug.Log("Printing Sample Info");
-                heatmapDatas[1].PrintInfo();
-                updateOnce = false;
+                text.text = "Movement heatmap selected.";
+                ShowMap(eventType.movement);
             }
+            if (Input.GetKeyDown(KeyCode.Alpha2))
+            {
+                text.text = "Attack heatmap selected.";
+                ShowMap(eventType.attack);
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha3))
+            {
+                text.text = "Jump heatmap selected.";
+                ShowMap(eventType.jump);
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha4))
+            {
+                text.text = "Enemy hits heatmap selected.";
+                ShowMap(eventType.hitEnemy);
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha5))
+            {
+                text.text = "Enemy kills heatmap selected.";
+                ShowMap(eventType.killEnemy);
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha6))
+            {
+                text.text = "Damage taken heatmap selected.";
+                ShowMap(eventType.recieveDamage);
+            }
+            if (Input.GetKeyDown(KeyCode.Alpha7))
+            {
+                text.text = "Death heatmap selected.";
+                ShowMap(eventType.death);
+            }
+
+            //if (updateOnce)
+            //{
+            //    Debug.Log("Printing Sample Info");
+            //    heatmapDatas[1].PrintInfo();
+            //    updateOnce = false;
+            //}
         }
-
-        // call the function here with the map that we wnat to show as a int
-
     }
 
-    private void ShowMovementMap(int id)
+    private void ShowMap(eventType type)
     {
-        switch (id)
+        DeleteInstantiatedCubes();
+        switch (type)
         {
-            case 1: // attack Map
+            case eventType.movement: // attack Map
                 {
-                    int cubeSize = 1; // TODO: let it change it manually, add a key to generate map
+                    Debug.Log("Generating map");
                     GenerateCubesMap(cubeSize);
 
-                    foreach(CubeClass cube in cubesList)
+                    foreach (CubeClass cube in cubesList)
                     {
-                        cube.value = DetermineCubeColor(cube);
-                        cube.InstantiateCube();
+                        cube.colorValues = DetermineCubeColor(cube);
+                        // TODO bool isActive
+                        GameObject temp = cube.InstantiateCube();
+                        temp.transform.localScale = new Vector3(cube.size, cube.size, cube.size);
+                        temp.GetComponent<Renderer>().material.color = new Color(cube.colorValues.x, cube.colorValues.y, cube.colorValues.z, 0.25f);
+                        cubesInstantiated.Add(temp);
                     }
-
                 }
                 break;
             default:
@@ -198,14 +251,12 @@ public class HeatmapGenerator : MonoBehaviour
         }
     }
 
-    private int DetermineCubeColor(CubeClass cubeP)
+    private Vector3 DetermineCubeColor(CubeClass cubeP)
     {
         int max = 0; // TODO
 
 
-
-
-        return 0;
+        return Vector3.zero;
     }
 
     private void GenerateCubesMap(int size) // this fills the cubeList with the correct amount of cubes and sizes/positions. The value of the color will be calculated later
@@ -213,31 +264,44 @@ public class HeatmapGenerator : MonoBehaviour
 
         // The map is 120x80, with the corners being: -33, 40; -33, -40; 94,-40; 94,40 (counter-clockwise)
         // fill an array with all the possible cubes with the given size.
-        // Vector3[] map = new Vector3[];
-        // return map;
 
-        int mapWidth = 120;
-        int mapHeight = 80;
+        int topLeftX = -60 - (size / 2);
+        int topLeftZ = 70 - (size / 2);
 
-        int totalCubes = 0; //TODO
+        int bottomLevel = -3;
+        int topLevel = 9;
 
-        // Create an array
+        int totalSizeX = mapWidth / size;
+        int totalSizeZ = mapLength / size;
+        int totalSizeY = (- bottomLevel + topLevel) / size;
 
+        for (int k = 0; k <= totalSizeY; k++)
+        {
+            for (int i = 0; i < totalSizeX; i++)
+            {
+                for (int j = 0; j < totalSizeZ; j++)
+                {
+                    CubeClass temp = new CubeClass();
+                    temp.classCubePrefab = cubePrefab;
+                    temp.originPosition.Set(topLeftX + (size * i), bottomLevel + (size*k), topLeftZ - (size * j));
+                    temp.size = size;
+                    cubesList.Add(temp);
 
-        //for(int i = 0; i < totalCubes; i++)
-        //{
-        //    cubesList[i].originPosition = 0; //TODO
-        //}
-
+                }
+            }
+        }
     }
 
-    private int CalculateNumber(Vector3 pos)
+    private void DeleteInstantiatedCubes()
     {
-        // this has to calculate a normalized number (bet. 0 - 1) and return it
-       
-        int min = 0; // default min is always 0
-        //int max = CalculateMax; // TODO
-
-        return 1;
+        if (cubesInstantiated.Count > 0)
+        {
+            foreach (GameObject toDestroy in cubesInstantiated)
+            {
+                Destroy(toDestroy);
+            }
+            cubesInstantiated.Clear();
+            cubesList.Clear();
+        }
     }
 }

@@ -14,9 +14,6 @@ public class CameraControls : MonoBehaviour
     //Camera
     public Camera cam;
 
-    //UI Text
-    public TMPro.TMP_Text text;
-
     //Movement speed
     private float movementSpeed = 10;
 
@@ -60,21 +57,5 @@ public class CameraControls : MonoBehaviour
         {
             transform.Translate(new Vector3(0, 0, -movementSpeed * Time.deltaTime));
         }
-
-        //Data Controls     
-        if (Input.GetKey(KeyCode.Alpha1))
-        { text.text = "Movement heatmap selected."; }
-        if (Input.GetKey(KeyCode.Alpha2))
-        { text.text = "Attack heatmap selected."; }
-        if (Input.GetKey(KeyCode.Alpha3))
-        { text.text = "Jump heatmap selected."; }
-        if (Input.GetKey(KeyCode.Alpha4))
-        { text.text = "Enemy hits heatmap selected."; }
-        if (Input.GetKey(KeyCode.Alpha5))
-        { text.text = "Enemy kills heatmap selected."; }
-        if (Input.GetKey(KeyCode.Alpha6))
-        { text.text = "Damage taken heatmap selected."; }
-        if (Input.GetKey(KeyCode.Alpha7))
-        { text.text = "Death heatmap selected."; }
     }
 }
