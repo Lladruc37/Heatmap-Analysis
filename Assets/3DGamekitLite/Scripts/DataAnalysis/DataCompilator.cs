@@ -60,7 +60,7 @@ public class HeatmapData
     }
 }
 
-public class SessionClass : MonoBehaviour
+public class SessionClass
 {
     public DateTime dateTime;
     public uint id;
@@ -82,12 +82,9 @@ public class DataCompilator : MonoBehaviour
     uint playerId = 0;
     uint currentSession = 0;
     bool newSessionStarted = false;
-    bool endingSession = false;
 
     public GameObject character;
-    PlayerInput input;
     PlayerController controller;
-    Damageable damageable;
     Vector3 lastPosition;
     float registerTimer = 1.5f;
     float currentTimer = 0.0f;
@@ -115,9 +112,7 @@ public class DataCompilator : MonoBehaviour
     void Start()
     {
         playerId = (uint)UnityEngine.Random.Range(0, 9);
-        input = character.GetComponent<PlayerInput>();
         controller = character.GetComponent<PlayerController>();
-        damageable = character.GetComponent<Damageable>();
         OnNewSession?.Invoke(DateTime.Now);
         lastPosition = character.transform.position;
     }
@@ -183,6 +178,7 @@ public class DataCompilator : MonoBehaviour
             }
         }
     }
+
     IEnumerator ChangeRegisteringTime()
     {
         GameObject[] importantObjects = GameObject.FindGameObjectsWithTag("Important");
