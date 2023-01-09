@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 //using System.Numerics;
 using UnityEngine;
@@ -17,8 +18,8 @@ public class HeatmapGenerator : MonoBehaviour
     // Lists needed
     [HideInInspector] public List<int> numbersChosen = new List<int>();
     public List<HeatmapData> heatmapDatas = new List<HeatmapData>();
+
     public List<CubeClass> cubesList = new List<CubeClass>();
-    public List<GameObject> cubesInstantiated = new List<GameObject>();
 
     [HideInInspector] public string url = "https://citmalumnes.upc.es/~sergicf4/";
     [HideInInspector] public string sUrl = "GetEvent.php";
@@ -34,7 +35,15 @@ public class HeatmapGenerator : MonoBehaviour
     int mapLength = 140;
     int mapHeigth = 20;
 
-    public int cubeSize = 1; // TODO: let it change it manually, add a key to generate map
+    int maxEvents = 0; // cleancode lol
+
+    public int cubeSize = 50; // TODO: granularity thing?
+
+    // To change the color palette of the cubes
+
+    public Color cubeColorA = Color.green;
+    public Color cubeColorB = Color.red;
+
 
     // Text UI
     public TMPro.TMP_Text text;
@@ -45,12 +54,18 @@ public class HeatmapGenerator : MonoBehaviour
         public Vector3 originPosition = new Vector3();
         public int size;
         public Vector3 colorValues;
-        public bool isActive;
+        public Color color;
+        public float value;
+        public int nEvents;
 
+        public GameObject instance = null;
 
-        public GameObject InstantiateCube()
+        public CubeClass() { }
+        public CubeClass(int size) { this.size = size; }
+
+        public void InstantiateCube()
         {
-            return Instantiate(classCubePrefab, originPosition, Quaternion.identity);
+            instance = Instantiate(classCubePrefab, originPosition, Quaternion.identity);
 
         }
     }
@@ -136,7 +151,6 @@ public class HeatmapGenerator : MonoBehaviour
     void Start()
     {
         maxIds = GetNumberEvents();
-
         if (totalIdsToStore > maxIds)
         {
             Debug.LogError("Error! Too many ids to store. Please choose a lower number.");
@@ -227,22 +241,51 @@ public class HeatmapGenerator : MonoBehaviour
 
     private void ShowMap(eventType type)
     {
+        maxEvents = 0; // reset it
+
         DeleteInstantiatedCubes();
+        GenerateCubesMap(cubeSize);
+
         switch (type)
         {
             case eventType.movement: // attack Map
                 {
-                    Debug.Log("Generating map");
-                    GenerateCubesMap(cubeSize);
+                    Debug.Log("GenerateCubesMap ended");
+                    foreach (CubeClass cube in cubesList)
+                    {
+                        Debug.Log("FillCubeEvents starting");
+
+                        cube.InstantiateCube();
+                        cube.instance.transform.localScale = new Vector3(cube.size, cube.size, cube.size);
+
+                        FillCubeEvents(cube, type); // After this step, the whole list of cubes has the nEvents act
+                        Debug.Log("FillCubeEvents end");
+
+                        if (cube.nEvents <= 0) // Only instantiate cubes with meaningful information
+                        {
+                            if (cube.instance != null)
+                            {
+                                Destroy(cube.instance);
+                                cube.instance = null;
+                            }
+                            //cubesList.Remove(cube); // TODO
+                        }
+                        else if(cube.nEvents > maxEvents)
+                        {
+                            maxEvents = cube.nEvents;
+
+                        }  
+                    }
 
                     foreach (CubeClass cube in cubesList)
                     {
-                        cube.colorValues = DetermineCubeColor(cube);
-                        // TODO bool isActive
-                        GameObject temp = cube.InstantiateCube();
-                        temp.transform.localScale = new Vector3(cube.size, cube.size, cube.size);
-                        temp.GetComponent<Renderer>().material.color = new Color(cube.colorValues.x, cube.colorValues.y, cube.colorValues.z, 0.25f);
-                        cubesInstantiated.Add(temp);
+                        if (cube.instance != null)
+                        {
+                            cube.value = (float)cube.nEvents / (float)maxEvents;
+                            cube.color = Color.Lerp(cubeColorA, cubeColorB, cube.value);
+                            cube.color.a = 0.75f;
+                            cube.instance.GetComponent<Renderer>().material.color = cube.color;
+                        }
                     }
                 }
                 break;
@@ -251,12 +294,22 @@ public class HeatmapGenerator : MonoBehaviour
         }
     }
 
-    private Vector3 DetermineCubeColor(CubeClass cubeP)
+    private void FillCubeEvents(CubeClass cubeP, eventType type)
     {
-        int max = 0; // TODO
+        foreach (HeatmapData data in heatmapDatas)
+        {
+            if (data.type == type)
+            {
+                Debug.Log("Checking type");
+                
+                
 
-
-        return Vector3.zero;
+                if(cubeP.instance.GetComponent<Collider>().bounds.Contains(data.position))
+                {
+                    cubeP.nEvents++;
+                }
+            }
+        }
     }
 
     private void GenerateCubesMap(int size) // this fills the cubeList with the correct amount of cubes and sizes/positions. The value of the color will be calculated later
@@ -273,7 +326,8 @@ public class HeatmapGenerator : MonoBehaviour
 
         int totalSizeX = mapWidth / size;
         int totalSizeZ = mapLength / size;
-        int totalSizeY = (- bottomLevel + topLevel) / size;
+        int totalSizeY = (-bottomLevel + topLevel) / size;
+        if (totalSizeY <= 0) totalSizeY = 1; // So at least we have one cube?
 
         for (int k = 0; k <= totalSizeY; k++)
         {
@@ -281,9 +335,9 @@ public class HeatmapGenerator : MonoBehaviour
             {
                 for (int j = 0; j < totalSizeZ; j++)
                 {
-                    CubeClass temp = new CubeClass();
+                    CubeClass temp = new CubeClass(cubeSize);
                     temp.classCubePrefab = cubePrefab;
-                    temp.originPosition.Set(topLeftX + (size * i), bottomLevel + (size*k), topLeftZ - (size * j));
+                    temp.originPosition.Set(topLeftX + (size * i), bottomLevel + (size * k), topLeftZ - (size * j));
                     temp.size = size;
                     cubesList.Add(temp);
 
@@ -294,14 +348,14 @@ public class HeatmapGenerator : MonoBehaviour
 
     private void DeleteInstantiatedCubes()
     {
-        if (cubesInstantiated.Count > 0)
+        foreach (CubeClass cube in cubesList)
         {
-            foreach (GameObject toDestroy in cubesInstantiated)
+            if (cube.instance != null)
             {
-                Destroy(toDestroy);
+                Destroy(cube.instance);
+                cube.instance = null;
             }
-            cubesInstantiated.Clear();
-            cubesList.Clear();
         }
+        cubesList.Clear();
     }
 }
