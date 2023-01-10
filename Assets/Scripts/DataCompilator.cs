@@ -237,15 +237,15 @@ public class DataCompilator : MonoBehaviour
 
         yield return closestDistance;
 
-        if (closestDistance <= 15.0f)
+        if (closestDistance <= 10.0f)
         {
             Debug.Log("Important shenanigans nearby");
-            registerTimer = closestDistance / 10.0f;
-            registerTimer += 0.3f;
+            registerTimer = closestDistance / 20.0f;
+            registerTimer += 0.5f;
         }
         else
         {
-            registerTimer = 1.8f;
+            registerTimer = 1.0f;
         }
     }
     public void RegisterRecieveDamage()

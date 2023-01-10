@@ -41,7 +41,8 @@ public class HeatmapGenerator : MonoBehaviour
 
     Dictionary<eventType, int> maxEvents = new Dictionary<eventType, int>();
 
-    public int granularity = 50;
+    [Range(1, 10)]
+    public int granularity;
 
     // To change the color palette of the cubes
 
@@ -177,6 +178,10 @@ public class HeatmapGenerator : MonoBehaviour
         canUpdate = false;
         maxIds = GetNumberEvents();
         iterator = 0;
+        if (granularity < 1)
+        {
+            granularity = 1;
+        }
 
         maxEvents.Add(eventType.movement, 0);
         maxEvents.Add(eventType.attack, 0);
