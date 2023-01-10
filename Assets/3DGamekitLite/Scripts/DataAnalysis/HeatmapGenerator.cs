@@ -41,9 +41,7 @@ public class HeatmapGenerator : MonoBehaviour
 
     // To change the color palette of the cubes
 
-    public Color cubeColorA = Color.green;
-    public Color cubeColorB = Color.red;
-
+    public Gradient cubeColors;
 
     // Text UI
     public TMPro.TMP_Text text;
@@ -229,13 +227,6 @@ public class HeatmapGenerator : MonoBehaviour
                 text.text = "Death heatmap selected.";
                 ShowMap(eventType.death);
             }
-
-            //if (updateOnce)
-            //{
-            //    Debug.Log("Printing Sample Info");
-            //    heatmapDatas[1].PrintInfo();
-            //    updateOnce = false;
-            //}
         }
     }
 
@@ -282,8 +273,8 @@ public class HeatmapGenerator : MonoBehaviour
                         if (cube.instance != null)
                         {
                             cube.value = (float)cube.nEvents / (float)maxEvents;
-                            cube.color = Color.Lerp(cubeColorA, cubeColorB, cube.value);
-                            cube.color.a = 0.75f;
+                            cube.color = cubeColors.Evaluate(cube.value);
+                            cube.color.a = 0.85f;
                             cube.instance.GetComponent<Renderer>().material.color = cube.color;
                         }
                     }
