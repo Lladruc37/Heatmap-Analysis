@@ -8,7 +8,7 @@ public class CameraControls : MonoBehaviour
     public float horizontalSpeed = 1f;
     // vertical rotation speed
     public float verticalSpeed = 1f;
-    private float xRotation = 0.0f;
+    private float xRotation = 90.0f;
     private float yRotation = 0.0f;
 
     //Camera
@@ -16,15 +16,25 @@ public class CameraControls : MonoBehaviour
 
     //Movement speed
     private float movementSpeed = 10;
-
     void Update()
     {
         //Rotation
-        float mouseX = Input.GetAxis("Mouse X") * horizontalSpeed;
-        float mouseY = Input.GetAxis("Mouse Y") * verticalSpeed;
-        yRotation += mouseX;
-        xRotation -= mouseY;
-        cam.transform.eulerAngles = new Vector3(xRotation, yRotation, 0.0f);
+        
+        if (Input.GetButton("Fire1"))
+        {
+            float mouseX = Input.GetAxis("Mouse X") * horizontalSpeed;
+            float mouseY = Input.GetAxis("Mouse Y") * verticalSpeed;
+            yRotation += mouseX;
+            xRotation -= mouseY;
+            cam.transform.eulerAngles = new Vector3(xRotation, yRotation, 0.0f);
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+        else
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+        }
 
         //Movement
         if (Input.GetKey(KeyCode.LeftShift))

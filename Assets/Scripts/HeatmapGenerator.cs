@@ -2,14 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Unity.VisualScripting;
-using UnityEditor.PackageManager;
-//using System.Numerics;
 using UnityEngine;
-using UnityEngine.ProBuilder.Shapes;
-using static Gamekit3D.EffectStateMachineBehavior;
-
 public class HeatmapGenerator : MonoBehaviour
 {
     //Range of IDs to take from
@@ -23,7 +16,6 @@ public class HeatmapGenerator : MonoBehaviour
     // Lists needed
     [HideInInspector] public List<int> numbersChosen = new List<int>();
     public List<HeatmapData> heatmapDatas = new List<HeatmapData>();
-
     public List<CubeClass> cubesList = new List<CubeClass>();
 
     [HideInInspector] public string url = "https://citmalumnes.upc.es/~sergicf4/";
@@ -45,11 +37,12 @@ public class HeatmapGenerator : MonoBehaviour
     public int granularity;
 
     // To change the color palette of the cubes
-
     public Gradient cubeColors;
 
     // Text UI
+    [Header("UI Elements")]
     public TMPro.TMP_Text text;
+    public TMPro.TMP_Text textSelected;
 
     public class CubeClass
     {
@@ -92,8 +85,7 @@ public class HeatmapGenerator : MonoBehaviour
     // bools
     bool updatePartOne = true;
     bool updatePartTwo = false;
-    bool canUpdate = false;
-
+    [HideInInspector]public bool canUpdate = false;
 
     private void OnEnable()
     {
@@ -175,14 +167,6 @@ public class HeatmapGenerator : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        canUpdate = false;
-        maxIds = GetNumberEvents();
-        iterator = 0;
-        if (granularity < 1)
-        {
-            granularity = 1;
-        }
-
         maxEvents.Add(eventType.movement, 0);
         maxEvents.Add(eventType.attack, 0);
         maxEvents.Add(eventType.jump, 0);
@@ -191,6 +175,8 @@ public class HeatmapGenerator : MonoBehaviour
         maxEvents.Add(eventType.recieveDamage, 0);
         maxEvents.Add(eventType.death, 0);
 
+        maxIds = GetNumberEvents();
+
 		if (totalIdsToStore > maxIds)
         {
             Debug.LogError("Error! Too many ids to store. Please choose a lower number.");
@@ -198,32 +184,48 @@ public class HeatmapGenerator : MonoBehaviour
         }
         else
         {
-            Debug.Log("Getting events...");
-            text.text = "Downloading data...";
-            if (getAllEvents)
-			{
-                totalIdsToStore = maxIds - 1;
-			}
-
-            while (numbersChosen.Count != totalIdsToStore)
-            {
-                bool isDupe = false;
-
-                int luckyNumber = UnityEngine.Random.Range(1, maxIds);
-
-                foreach (int number in numbersChosen)
-                {
-                    if (number == luckyNumber) { isDupe = true; }
-                }
-
-                if (!isDupe)
-                {
-                    numbersChosen.Add(luckyNumber);
-                }
-            }
-            Debug.Log("Total count: " + numbersChosen.Count);
-            OnGetEvent?.Invoke(numbersChosen[0]);
+            DownloadData();
         }
+    }
+    public void DownloadData()
+    {
+        DeleteInstantiatedCubes();
+        textSelected.text = "";
+        heatmapDatas.Clear();
+        canUpdate = false;
+        updatePartOne = true;
+        updatePartTwo = false;
+        iterator = 0;
+        if (granularity < 1)
+        {
+            granularity = 1;
+        }
+
+        Debug.Log("Getting events...");
+        text.text = "Downloading data...";
+        if (getAllEvents)
+        {
+            totalIdsToStore = maxIds - 1;
+        }
+
+        while (numbersChosen.Count != totalIdsToStore)
+        {
+            bool isDupe = false;
+
+            int luckyNumber = UnityEngine.Random.Range(1, maxIds);
+
+            foreach (int number in numbersChosen)
+            {
+                if (number == luckyNumber) { isDupe = true; }
+            }
+
+            if (!isDupe)
+            {
+                numbersChosen.Add(luckyNumber);
+            }
+        }
+        Debug.Log("Total count: " + numbersChosen.Count);
+        OnGetEvent?.Invoke(numbersChosen[0]);
     }
 
     // Update is called once per frame
@@ -264,37 +266,30 @@ public class HeatmapGenerator : MonoBehaviour
             //Data Controls     
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
-                canUpdate = false;
                 ShowMap(eventType.movement);
             }
             if (Input.GetKeyDown(KeyCode.Alpha2))
             {
-                canUpdate = false;
                 ShowMap(eventType.attack);
             }
             if (Input.GetKeyDown(KeyCode.Alpha3))
             {
-                canUpdate = false;
                 ShowMap(eventType.jump);
             }
             if (Input.GetKeyDown(KeyCode.Alpha4))
             {
-                canUpdate = false;
                 ShowMap(eventType.hitEnemy);
             }
             if (Input.GetKeyDown(KeyCode.Alpha5))
             {
-                canUpdate = false;
                 ShowMap(eventType.killEnemy);
             }
             if (Input.GetKeyDown(KeyCode.Alpha6))
             {
-                canUpdate = false;
                 ShowMap(eventType.recieveDamage);
             }
             if (Input.GetKeyDown(KeyCode.Alpha7))
             {
-                canUpdate = false;
                 ShowMap(eventType.death);
             }
         }
@@ -302,7 +297,8 @@ public class HeatmapGenerator : MonoBehaviour
 
     private void ShowMap(eventType type)
     {
-        text.text = "Creating map: " + GetNameEvent(type);
+        canUpdate = false;
+        textSelected.text = "Creating map: " + GetNameEvent(type);
         DeleteInstantiatedCubes();
 
         foreach (CubeClass cube in cubesList)
@@ -317,7 +313,7 @@ public class HeatmapGenerator : MonoBehaviour
             }
         }
 
-        text.text = "Heatmap selected: " + GetNameEvent(type);
+        textSelected.text = "Heatmap selected: " + GetNameEvent(type);
         canUpdate = true;
     }
 
