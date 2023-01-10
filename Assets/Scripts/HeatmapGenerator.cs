@@ -40,7 +40,7 @@ public class HeatmapGenerator : MonoBehaviour
 
     Dictionary<eventType, int> maxEvents = new Dictionary<eventType, int>();
 
-    public int cubeSize = 50; // TODO: granularity thing?
+    public int granularity = 50;
 
     // To change the color palette of the cubes
 
@@ -232,28 +232,31 @@ public class HeatmapGenerator : MonoBehaviour
     {
         if (heatmapDatas.Count >= totalIdsToStore)
         {
-            if (updatePartTwo && !updatePartOne)
-            {
-                text.text = "Grid created! Generating map...";
-                Debug.Log("Grid created! Generating map...");
-                CreateMap();
-                updatePartTwo = false;
-            }
+            if (!canUpdate)
+			{
+                if (updatePartTwo && !updatePartOne)
+                {
+                    text.text = "Grid created! Generating map...";
+                    Debug.Log("Grid created! Generating map...");
+                    CreateMap();
+                    updatePartTwo = false;
+                }
 
-            if (updatePartOne && !updatePartTwo)
-            {
-                updatePartOne = false;
-                text.text = "Data downloaded! Creating grid...";
-                Debug.Log("Data downloaded! Creating grid...");
-                GenerateCubesGrid(cubeSize);
-                updatePartTwo = true;
-            }
+                if (updatePartOne && !updatePartTwo)
+                {
+                    updatePartOne = false;
+                    text.text = "Data downloaded! Creating grid...";
+                    Debug.Log("Data downloaded! Creating grid...");
+                    GenerateCubesGrid(granularity);
+                    updatePartTwo = true;
+                }
 
-            if (!updatePartOne&& !updatePartTwo)
-            {
-                text.text = "Press 1 - 9 to select heatmap!";
-                Debug.Log("Maps generated!");
-                canUpdate = true;
+                if (!updatePartOne && !updatePartTwo)
+                {
+                    text.text = "Press 1 - 9 to select heatmap!";
+                    Debug.Log("Maps generated!");
+                    canUpdate = true;
+                }
             }
         }
 
@@ -307,7 +310,6 @@ public class HeatmapGenerator : MonoBehaviour
         {
             if (cube.nEvents[type] > 0) // Only instantiate cubes with meaningful information
             {
-                Debug.Log("New cube!");
                 cube.InstantiateCube();
                 cube.value = (float)cube.nEvents[type] / (float)maxEvents[type];
                 cube.color = Color.Lerp(cubeColorA, cubeColorB, cube.value);
@@ -344,7 +346,7 @@ public class HeatmapGenerator : MonoBehaviour
         }
     }
 
-    private int GetEventsInCube(CubeClass cubeP, eventType type)
+    private int GetEventsInCube(CubeClass cube, eventType type)
     {
         int events = 0;
 
@@ -352,20 +354,16 @@ public class HeatmapGenerator : MonoBehaviour
         {
             if (data.type == type)
             {
-                if (cubeP.instance.GetComponent<Collider>().bounds.Contains(data.position))
+                if (cube.instance != null)
                 {
-                    Debug.Log("Event contained!");
-                    events++;
-                }
-
-                if (cubeP.nEvents[type] > maxEvents[type])
-                {
-                    maxEvents[type] = cubeP.nEvents[type];
+                    if (cube.instance.GetComponent<Collider>().bounds.Contains(data.position))
+                    {
+                        events++;
+                    }
                 }
             }
         }
 
-        cubeP.DestroyCube();
         return events;
     }
 
@@ -406,30 +404,51 @@ public class HeatmapGenerator : MonoBehaviour
     private void CreateMap()
     {
         List<CubeClass> newList = new List<CubeClass>();
-        foreach (CubeClass temp in cubesList)
+        foreach (CubeClass cube in cubesList)
         {
             Dictionary<eventType, int> tempDictionary = new Dictionary<eventType, int>();
 
-            foreach (KeyValuePair<eventType, int> type in temp.nEvents)
+            foreach (KeyValuePair<eventType, int> type in cube.nEvents)
             {
-                //Debug.Log("Filling cube events: " + type.Key);
-                int events = GetEventsInCube(temp, type.Key);
+                int events = GetEventsInCube(cube, type.Key);
+
                 if (events > 0)
                 {
-                    if (!newList.Contains(temp))
+                    if (!newList.Contains(cube))
                     {
-                        newList.Add(temp);
+                        newList.Add(cube);
                     }
                 }
+
+                if (events > maxEvents[type.Key])
+                {
+                    maxEvents[type.Key] = events;
+                }
+
                 tempDictionary.Add(type.Key, events);
             }
 
-            temp.nEvents = tempDictionary;
+            cube.nEvents = tempDictionary;
         }
 
         DeleteInstantiatedCubes();
-
+        cubesList.Clear();
         cubesList = newList;
+
+        Debug.Log("Data finalized: Count List: " + cubesList.Count);
+        foreach (CubeClass cube in cubesList)
+        {
+            List<int> counts = new List<int>();
+            foreach (KeyValuePair<eventType, int> type in cube.nEvents)
+            {
+                counts.Add(type.Value);
+            }
+
+            if (!counts.Any(p => p != 0))
+			{
+                Debug.Log(counts[0] + " - " + counts[1] + " - " + counts[2] + " - " + counts[3] + " - " + counts[4] + " - " + counts[5] + " - " + counts[6]);
+			}
+        }
     }
 
     private void DeleteInstantiatedCubes()
