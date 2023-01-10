@@ -18,6 +18,7 @@ public class HeatmapGenerator : MonoBehaviour
     //Amount of IDs to store
     public bool getAllEvents;
     public int totalIdsToStore;
+    int iterator = 0;
 
     // Lists needed
     [HideInInspector] public List<int> numbersChosen = new List<int>();
@@ -136,6 +137,11 @@ public class HeatmapGenerator : MonoBehaviour
             tempHeatMap.position.z = z;
 
             heatmapDatas.Add(tempHeatMap);
+            iterator++;
+            if (iterator != numbersChosen.Count)
+            {
+                StartCoroutine(PHP2Event(numbersChosen[iterator]));
+            }
         }
         else
         {
@@ -170,6 +176,7 @@ public class HeatmapGenerator : MonoBehaviour
     {
         canUpdate = false;
         maxIds = GetNumberEvents();
+        iterator = 0;
 
         maxEvents.Add(eventType.movement, 0);
         maxEvents.Add(eventType.attack, 0);
@@ -179,12 +186,7 @@ public class HeatmapGenerator : MonoBehaviour
         maxEvents.Add(eventType.recieveDamage, 0);
         maxEvents.Add(eventType.death, 0);
 
-        //if (getAllEvents)
-        //{
-        //    totalIdsToStore = maxIds;
-        //}
-
-        if (totalIdsToStore > maxIds)
+		if (totalIdsToStore > maxIds)
         {
             Debug.LogError("Error! Too many ids to store. Please choose a lower number.");
             text.text = "Error! Too many ids to store. Please choose a lower number.";
@@ -193,15 +195,11 @@ public class HeatmapGenerator : MonoBehaviour
         {
             Debug.Log("Getting events...");
             text.text = "Downloading data...";
-            //if (getAllEvents)
-            //{
-            //    for (int i = 0; i != totalIdsToStore; i++)
-            //    {
-            //        OnGetEvent?.Invoke(i);
-            //    }
-            //}
-            //else
-            //{
+            if (getAllEvents)
+			{
+                totalIdsToStore = maxIds - 1;
+			}
+
             while (numbersChosen.Count != totalIdsToStore)
             {
                 bool isDupe = false;
@@ -216,12 +214,10 @@ public class HeatmapGenerator : MonoBehaviour
                 if (!isDupe)
                 {
                     numbersChosen.Add(luckyNumber);
-                    OnGetEvent?.Invoke(luckyNumber);
                 }
             }
             Debug.Log("Total count: " + numbersChosen.Count);
-            //}
-
+            OnGetEvent?.Invoke(numbersChosen[0]);
         }
     }
 
