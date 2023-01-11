@@ -4,7 +4,7 @@ using UnityEditor;
 using UnityEngine;
 
 [CustomEditor(typeof(HeatmapGenerator))]
-public class SomeScriptEditor : Editor
+public class DataCompilatorEditor : Editor
 {
     public override void OnInspectorGUI()
     {

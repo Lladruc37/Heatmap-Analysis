@@ -3,6 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+
+public enum Filter
+{
+    none = 0,
+    player,
+    session
+}
 public class HeatmapGenerator : MonoBehaviour
 {
     //Range of IDs to take from
@@ -13,9 +20,16 @@ public class HeatmapGenerator : MonoBehaviour
     public int totalIdsToStore;
     int iterator = 0;
 
+    // Text UI
+    [Header("Scene Elements")]
+    public TMPro.TMP_Text textInfo;
+    public TMPro.TMP_Text textSelected;
+
     // Lists needed
     [HideInInspector] public List<int> numbersChosen = new List<int>();
     public List<HeatmapData> heatmapDatas = new List<HeatmapData>();
+    public List<HeatmapData> pathData = new List<HeatmapData>();
+    [HideInInspector] public List<GameObject> arrows = new List<GameObject>();
     public List<CubeClass> cubesList = new List<CubeClass>();
 
     [HideInInspector] public string url = "https://citmalumnes.upc.es/~sergicf4/";
@@ -23,26 +37,29 @@ public class HeatmapGenerator : MonoBehaviour
     [HideInInspector] public string nUrl = "GetNumberEvents.php";
 
     public static Action<int> OnGetEvent;
-
     public GameObject cubePrefab;
+    public GameObject arrowPrefab;
 
     // Map size
-
-    int mapWidth = 190;
-    int mapLength = 140;
+    [Header("Map Measurements")]
+    public Vector2 topLeft = new Vector2(-60, 70);
+    public int bottomLevel = -3;
+    public int topLevel = 9;
+    public int mapWidth = 190;
+    public int mapLength = 140;
 
     Dictionary<eventType, int> maxEvents = new Dictionary<eventType, int>();
 
+    [Header("Heatmap Settings")]
     [Range(1, 10)]
     public int granularity;
 
     // To change the color palette of the cubes
     public Gradient cubeColors;
-
-    // Text UI
-    [Header("UI Elements")]
-    public TMPro.TMP_Text text;
-    public TMPro.TMP_Text textSelected;
+    public Filter filter;
+    [Range(0,9)]
+    public int playerId;
+    public int sessionId;
 
     public class CubeClass
     {
@@ -180,7 +197,7 @@ public class HeatmapGenerator : MonoBehaviour
 		if (totalIdsToStore > maxIds)
         {
             Debug.LogError("Error! Too many ids to store. Please choose a lower number.");
-            text.text = "Error! Too many ids to store. Please choose a lower number.";
+            textInfo.text = "Error! Too many ids to store. Please choose a lower number.";
         }
         else
         {
@@ -202,7 +219,7 @@ public class HeatmapGenerator : MonoBehaviour
         }
 
         Debug.Log("Getting events...");
-        text.text = "Downloading data...";
+        textInfo.text = "Downloading data...";
         if (getAllEvents)
         {
             totalIdsToStore = maxIds - 1;
@@ -237,16 +254,21 @@ public class HeatmapGenerator : MonoBehaviour
 			{
                 if (updatePartTwo && !updatePartOne)
                 {
-                    text.text = "Grid created! Generating map...";
+                    textInfo.text = "Grid created! Generating map...";
                     Debug.Log("Grid created! Generating map...");
                     CreateMap();
+                    if (filter == Filter.session)
+                    {
+                        pathData.Clear();
+                        pathData = CreatePath(sessionId);
+                    }
                     updatePartTwo = false;
                 }
 
                 if (updatePartOne && !updatePartTwo)
                 {
                     updatePartOne = false;
-                    text.text = "Data downloaded! Creating grid...";
+                    textInfo.text = "Data downloaded! Creating grid...";
                     Debug.Log("Data downloaded! Creating grid...");
                     GenerateCubesGrid(granularity);
                     updatePartTwo = true;
@@ -254,7 +276,11 @@ public class HeatmapGenerator : MonoBehaviour
 
                 if (!updatePartOne && !updatePartTwo)
                 {
-                    text.text = "Press 1 - 9 to select heatmap!";
+                    textInfo.text = "Press 1 - 7 to select heatmap!";
+                    if (filter == Filter.session)
+                    {
+                        textInfo.text += " Press 8 to show path from session!";
+                    }
                     Debug.Log("Maps generated!");
                     canUpdate = true;
                 }
@@ -292,13 +318,18 @@ public class HeatmapGenerator : MonoBehaviour
             {
                 ShowMap(eventType.death);
             }
+            if (Input.GetKeyDown(KeyCode.Alpha8))
+            {
+                ShowPath();
+            }
         }
     }
 
     private void ShowMap(eventType type)
     {
         canUpdate = false;
-        textSelected.text = "Creating map: " + GetNameEvent(type);
+        textSelected.text = "Creating map: " + type.ToString();
+        DeleteInstantiatedArrows();
         DeleteInstantiatedCubes();
 
         foreach (CubeClass cube in cubesList)
@@ -308,71 +339,59 @@ public class HeatmapGenerator : MonoBehaviour
                 cube.InstantiateCube();
                 cube.value = (float)cube.nEvents[type] / (float)maxEvents[type];
                 cube.color = cubeColors.Evaluate(cube.value);
-                cube.color.a = 0.85f;
+                cube.color.a = 0.8f;
                 cube.instance.GetComponent<Renderer>().material.color = cube.color;
             }
         }
 
-        textSelected.text = "Heatmap selected: " + GetNameEvent(type);
+        textSelected.text = "Heatmap selected: " + type.ToString();
         canUpdate = true;
     }
 
-    private string GetNameEvent(eventType type)
+    private void ShowPath()
     {
-        switch (type)
+        DeleteInstantiatedArrows();
+        DeleteInstantiatedCubes();
+        textSelected.text = "Showing player path";
+        for (int i = 0; i < (pathData.Count - 1); i++)
         {
-            case eventType.movement:
-                return "Movement";
-            case eventType.attack:
-                return "Attack";
-            case eventType.jump:
-                return "Jump";
-            case eventType.hitEnemy:
-                return "HitEnemy";
-            case eventType.killEnemy:
-                return "KillEnemy";
-            case eventType.recieveDamage:
-                return "RecieveDamage";
-            case eventType.death:
-                return "Death";
-            default:
-                Debug.Log("This should never happen...");
-                return "null";
+            GameObject arrow = Instantiate(arrowPrefab, pathData[i].position, Quaternion.identity);
+            arrow.transform.LookAt(pathData[i + 1].position);
+            float value = (float)i / (float)pathData.Count;
+            if (arrow.GetComponentInChildren<Renderer>() != null)
+            {
+                Color color = cubeColors.Evaluate(value);
+                color.a = 0.8f;
+                arrow.GetComponentInChildren<Renderer>().material.color = color;
+            }
+            arrows.Add(arrow);
         }
     }
-
-    private int GetEventsInCube(CubeClass cube, eventType type)
+    private List<HeatmapData> CreatePath(int sessionId)
     {
-        int events = 0;
-
-        foreach (HeatmapData data in heatmapDatas)
+        List<HeatmapData> orderedData = new List<HeatmapData>();
+        foreach(HeatmapData data in heatmapDatas)
         {
-            if (data.type == type)
+            if (data.sessionId == sessionId && data.type == eventType.movement)
             {
-                if (cube.instance != null)
-                {
-                    if (cube.instance.GetComponent<Collider>().bounds.Contains(data.position))
-                    {
-                        events++;
-                    }
-                }
+                orderedData.Add(data);
             }
         }
 
-        return events;
+        orderedData.Sort((a, b) => DateTime.Compare(a.dateTime, b.dateTime));
+        return orderedData;
     }
-
     private void GenerateCubesGrid(int size) // this fills the cubeList with the correct amount of cubes and sizes/positions. The value of the color will be calculated later
     {
 
         // The map is 120x80, with the corners being: -33, 40; -33, -40; 94,-40; 94,40 (counter-clockwise)
         // fill an array with all the possible cubes with the given size.
 
-        int topLeftX = -60 - (size / 2);
-        int topLeftZ = 70 - (size / 2);
+        int topLeftX = (int)topLeft.x;
+        int topLeftZ = (int)topLeft.y;
 
-        int bottomLevel = -3;
-        int topLevel = 9;
+        topLeftX -= (size / 2);
+        topLeftZ -= (size / 2);
 
         int totalSizeX = mapWidth / size;
         int totalSizeZ = mapLength / size;
@@ -394,6 +413,8 @@ public class HeatmapGenerator : MonoBehaviour
                 }
             }
         }
+
+        Debug.Log("Grid size: " + cubesList.Count);
     }
 
     private void CreateMap()
@@ -405,7 +426,7 @@ public class HeatmapGenerator : MonoBehaviour
 
             foreach (KeyValuePair<eventType, int> type in cube.nEvents)
             {
-                int events = GetEventsInCube(cube, type.Key);
+                int events = GetEventsInCube(cube, type.Key, filter, playerId, sessionId);
 
                 if (events > 0)
                 {
@@ -440,10 +461,81 @@ public class HeatmapGenerator : MonoBehaviour
             }
 
             if (!counts.Any(p => p != 0))
-			{
+            {
                 Debug.Log(counts[0] + " - " + counts[1] + " - " + counts[2] + " - " + counts[3] + " - " + counts[4] + " - " + counts[5] + " - " + counts[6]);
-			}
+            }
         }
+    }
+
+    private int GetEventsInCube(CubeClass cube, eventType type, Filter filter = Filter.none, int playerId = -1, int sessionId = -1)
+    {
+        int events = 0;
+
+        switch (filter)
+        {
+            case Filter.none:
+                foreach (HeatmapData data in heatmapDatas)
+                {
+                    if (data.type == type)
+                    {
+                        if (cube.instance != null)
+                        {
+                            if (cube.instance.GetComponent<Collider>().bounds.Contains(data.position))
+                            {
+                                events++;
+                            }
+                        }
+                    }
+                }
+                break;
+            case Filter.player:
+                foreach (HeatmapData data in heatmapDatas)
+                {
+                    if (data.type == type && data.playerId == playerId)
+                    {
+                        if (cube.instance != null)
+                        {
+                            if (cube.instance.GetComponent<Collider>().bounds.Contains(data.position))
+                            {
+                                events++;
+                            }
+                        }
+                    }
+                }
+                break;
+            case Filter.session:
+                foreach (HeatmapData data in heatmapDatas)
+                {
+                    if (data.type == type && data.sessionId == sessionId)
+                    {
+                        if (cube.instance != null)
+                        {
+                            if (cube.instance.GetComponent<Collider>().bounds.Contains(data.position))
+                            {
+                                events++;
+                            }
+                        }
+                    }
+                }
+                break;
+            default:
+                foreach (HeatmapData data in heatmapDatas)
+                {
+                    if (data.type == type)
+                    {
+                        if (cube.instance != null)
+                        {
+                            if (cube.instance.GetComponent<Collider>().bounds.Contains(data.position))
+                            {
+                                events++;
+                            }
+                        }
+                    }
+                }
+                break;
+        }
+
+        return events;
     }
 
     private void DeleteInstantiatedCubes()
@@ -452,5 +544,17 @@ public class HeatmapGenerator : MonoBehaviour
         {
             cube.DestroyCube();
         }
+    }
+
+    private void DeleteInstantiatedArrows()
+    {
+        if (arrows.Count > 0)
+        {
+            foreach (GameObject arrow in arrows)
+            {
+                Destroy(arrow);
+            }
+        }
+        arrows.Clear();
     }
 }
