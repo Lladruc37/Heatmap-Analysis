@@ -206,9 +206,11 @@ public class HeatmapGenerator : MonoBehaviour
     }
     public void DownloadData()
     {
+        DeleteInstantiatedArrows();
         DeleteInstantiatedCubes();
         textSelected.text = "";
         heatmapDatas.Clear();
+        numbersChosen.Clear();
         canUpdate = false;
         updatePartOne = true;
         updatePartTwo = false;
